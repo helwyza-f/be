@@ -45,24 +45,26 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) AddItem(c *gin.Context) {
-	resourceID := c.Param("id")
-	var req struct {
-		Name         string  `json:"name" binding:"required"`
-		PricePerHour float64 `json:"price_per_hour"`
-		ItemType     string  `json:"item_type"`
-		IsDefault    bool    `json:"is_default"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+    resourceID := c.Param("id")
+    var req struct {
+        Name         string  `json:"name" binding:"required"`
+        PricePerHour float64 `json:"price_per_hour"`
+        ItemType     string  `json:"item_type" binding:"required"` // 'main' atau 'addon'
+        IsDefault    bool    `json:"is_default"`
+    }
 
-	item, err := h.service.AddResourceItem(c.Request.Context(), resourceID, req.Name, req.PricePerHour, req.ItemType, req.IsDefault)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusCreated, item)
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Lengkapi data barang: " + err.Error()})
+        return
+    }
+
+    // Panggil service dengan parameter lengkap
+    item, err := h.service.AddResourceItem(c.Request.Context(), resourceID, req.Name, req.PricePerHour, req.ItemType, req.IsDefault)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    c.JSON(http.StatusCreated, item)
 }
 
 func (h *Handler) ListItems(c *gin.Context) {
