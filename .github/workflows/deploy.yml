@@ -1,0 +1,33 @@
+name: Deploy Backend to EC2
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/be
+            # Tarik kode terbaru dari GitHub
+            git pull origin main
+            
+            # Buat/Update file .env dari GitHub Secrets
+            echo "${{ secrets.ENV_FILE }}" > .env
+            
+            # Rebuild container langsung di server (karena repo ditarik)
+            # Trik: Pakai --build agar Docker nge-build ulang pake Dockerfile terbaru
+            sudo docker-compose up --build -d
+            
+            # Bersihkan image-image lama yang gantung (biar disk EC2 gak penuh)
+            sudo docker image prune -f
