@@ -8,9 +8,10 @@ import (
 )
 
 func NewPostgres(host, port, user, password, dbname string) (*sqlx.DB, error) {
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+	// Tambahkan sslmode=require di sini
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=require",
 		host, port, user, password, dbname)
-	
+
 	db, err := sqlx.Open("postgres", dsn)
 	if err != nil {
 		return nil, err
