@@ -11,23 +11,30 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Deploy to EC2 via SSH
+      - name: Execute Remote SSH Commands
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd ~/be
-            # Tarik kode terbaru dari GitHub
-            git pull origin main
+            # 1. Masuk ke folder project
+            cd ~/be || (git clone https://github.com/helwyza-f/be.git ~/be && cd ~/be)
             
-            # Buat/Update file .env dari GitHub Secrets
+            # 2. Paksa tarik kode terbaru dari GitHub (Overriding local changes)
+            # Pastikan kamu sudah setup git credential/token di EC2 agar tidak minta password
+            git fetch origin main
+            git reset --hard origin/main
+            
+            # 3. Update file .env dari GitHub Secrets
             echo "${{ secrets.ENV_FILE }}" > .env
             
-            # Rebuild container langsung di server (karena repo ditarik)
-            # Trik: Pakai --build agar Docker nge-build ulang pake Dockerfile terbaru
+            # 4. Matikan container lama secara total biar tidak bentrok
+            sudo docker-compose down
+            
+            # 5. Build ulang dari Dockerfile dan jalankan di background
+            # Pastikan RAM/Swap 2GB di EC2 sudah aktif agar build tidak stuck
             sudo docker-compose up --build -d
             
-            # Bersihkan image-image lama yang gantung (biar disk EC2 gak penuh)
+            # 6. Bersihkan image lama yang sudah tidak terpakai (Dangling images)
             sudo docker image prune -f
