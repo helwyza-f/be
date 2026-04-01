@@ -19,7 +19,7 @@ type Customer struct {
 
 // RegisterReq DTO untuk pendaftaran pelanggan baru
 type RegisterReq struct {
-	Name  string `json:"name" binding:"required"`
-	Phone string `json:"phone" binding:"required"`
-	Email string `json:"email"`
+	Name  string  `json:"name" binding:"required"`
+	Phone string  `json:"phone" binding:"required"`
+	Email *string `json:"email"`
 }

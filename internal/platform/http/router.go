@@ -11,83 +11,92 @@ import (
 )
 
 type Config struct {
-	TenantHandler      *tenant.Handler
-	ResourceHandler    *resource.Handler
-	ReservationHandler *reservation.Handler
-	CustomerHandler    *customer.Handler
-	AuthHandler        *auth.Handler
+    TenantHandler      *tenant.Handler
+    ResourceHandler    *resource.Handler
+    ReservationHandler *reservation.Handler
+    CustomerHandler    *customer.Handler
+    AuthHandler        *auth.Handler
 }
 
 func NewRouter(cfg Config) *gin.Engine {
-	r := gin.Default()
-	
-	// FIX: Matikan auto-redirect trailing slash agar tidak memicu CORS error
-	r.RedirectTrailingSlash = false
-	r.RedirectFixedPath = false
+    r := gin.Default()
 
-	r.Use(middleware.CORSMiddleware())
-	r.Use(gin.Recovery())
-	r.Use(gin.Logger())
+    r.RedirectTrailingSlash = false
+    r.RedirectFixedPath = false
 
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{"message": "pong"})
-	})
+    r.Use(middleware.CORSMiddleware())
+    r.Use(gin.Recovery())
+    r.Use(gin.Logger())
 
-	v1 := r.Group("/api/v1")
-	{
-		v1.GET("/public/landing", cfg.TenantHandler.GetPublicLandingData)
-		v1.POST("/register", cfg.TenantHandler.Register)
-		v1.POST("/login", cfg.TenantHandler.Login)
+    r.GET("/ping", func(c *gin.Context) {
+        c.JSON(200, gin.H{"message": "pong"})
+    })
 
-		guest := v1.Group("/guest")
-		{
-			guest.GET("/availability/:resource_id", cfg.ReservationHandler.Availability)
-			guest.GET("/status/:token", cfg.ReservationHandler.Status)
-		}
+    v1 := r.Group("/api/v1")
+    {
+        // --- PUBLIC ROUTES (No Auth Required) ---
+        v1.GET("/public/landing", cfg.TenantHandler.GetPublicLandingData)
+        v1.GET("/public/resources/:id", cfg.ResourceHandler.GetPublicDetail)
+        v1.POST("/public/bookings", cfg.ReservationHandler.Create)
+        
+        // PINDAH KE SINI: Agar customer publik bisa dapet live validation WA
+        v1.GET("/validate-phone", cfg.CustomerHandler.ValidatePhone) 
 
-		protected := v1.Group("/")
-		protected.Use(middleware.AuthMiddleware()) 
-		{
-			admin := protected.Group("/admin")
-			{   
-				admin.GET("/profile", cfg.TenantHandler.GetProfile)
-				admin.PUT("/profile", cfg.TenantHandler.UpdateProfile)
-				admin.POST("/upload", cfg.TenantHandler.UploadImage)
-			}
+        v1.POST("/register", cfg.TenantHandler.Register)
+        v1.POST("/login", cfg.TenantHandler.Login)
 
-			// RESOURCE ROUTES
-			// Menggunakan path langsung tanpa slash di awal agar match dengan /api/v1/resources
-			resources := protected.Group("/resources-all")
-			{
-			resources.GET("", cfg.ResourceHandler.List)
-			resources.POST("", cfg.ResourceHandler.Create)
-			resources.DELETE("/:id", cfg.ResourceHandler.Delete)
-			
-			// Items Management
-			resources.GET("/:id/items", cfg.ResourceHandler.ListItems) 
-			resources.POST("/:id/items", cfg.ResourceHandler.AddItem)
-			
-			// Perhatikan path-nya: /api/v1/resources-all/items/:id
-			resources.PUT("/items/:id", cfg.ResourceHandler.UpdateItem)   // Tambahkan ini
-			resources.DELETE("/items/:id", cfg.ResourceHandler.DeleteItem) // Tambahkan ini (opsional)
-		}
+        // --- GUEST ROUTES (Magic Link Access) ---
+        guest := v1.Group("/guest")
+        {
+            guest.GET("/availability/:resource_id", cfg.ReservationHandler.Availability)
+            guest.GET("/status/:token", cfg.ReservationHandler.Status)
+        }
 
-			// RESERVATION ROUTES
-			bookings := protected.Group("/bookings")
-			{
-				bookings.POST("", cfg.ReservationHandler.Create)
-			}
+        // --- PROTECTED ROUTES (Admin/Tenant Only) ---
+        protected := v1.Group("/")
+        protected.Use(middleware.AuthMiddleware())
+        {
+            // Admin Profile & Settings
+            admin := protected.Group("/admin")
+            {
+                admin.GET("/profile", cfg.TenantHandler.GetProfile)
+                admin.PUT("/profile", cfg.TenantHandler.UpdateProfile)
+                admin.POST("/upload", cfg.TenantHandler.UploadImage)
+                // (ValidatePhone sudah dihapus dari sini)
+            }
 
-			// CUSTOMER ROUTES
-			customers := protected.Group("/customers")
-			{
-				customers.POST("", cfg.CustomerHandler.Create)
-				customers.GET("", cfg.CustomerHandler.List)
-			}
+            // RESOURCE MANAGEMENT
+            resources := protected.Group("/resources-all")
+            {
+                resources.GET("", cfg.ResourceHandler.List)
+                resources.POST("", cfg.ResourceHandler.Create)
+                resources.DELETE("/:id", cfg.ResourceHandler.Delete)
 
-			protected.GET("/me", cfg.AuthHandler.CheckMe)
-		}
-	}
+                resources.GET("/:id/items", cfg.ResourceHandler.ListItems)
+                resources.POST("/:id/items", cfg.ResourceHandler.AddItem)
+                resources.PUT("/items/:id", cfg.ResourceHandler.UpdateItem)
+                resources.DELETE("/items/:id", cfg.ResourceHandler.DeleteItem)
+            }
 
-	return r
+            // BOOKING MANAGEMENT
+            bookings := protected.Group("/bookings")
+            {
+                bookings.GET("", cfg.ReservationHandler.ListAll)
+                bookings.GET("/:id", cfg.ReservationHandler.GetDetail)
+                bookings.PUT("/:id/status", cfg.ReservationHandler.UpdateStatus)
+                bookings.POST("/manual", cfg.ReservationHandler.Create)
+            }
+
+            // CUSTOMER MANAGEMENT
+            customers := protected.Group("/customers")
+            {
+                customers.GET("", cfg.CustomerHandler.List)
+                customers.POST("", cfg.CustomerHandler.Create)
+            }
+
+            protected.GET("/me", cfg.AuthHandler.CheckMe)
+        }
+    }
+
+    return r
 }

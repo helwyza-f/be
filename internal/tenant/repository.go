@@ -3,7 +3,8 @@ package tenant
 import (
 	"context"
 	"database/sql"
-	
+	"encoding/json"
+
 	"github.com/google/uuid"
 	"github.com/helwiza/saas/internal/booking"
 	"github.com/jmoiron/sqlx"
@@ -77,4 +78,53 @@ func (r *Repository) ListResources(ctx context.Context, tenantID uuid.UUID) ([]b
 	query := `SELECT * FROM resources WHERE tenant_id = $1 AND status != 'deleted' ORDER BY created_at DESC`
 	err := r.db.SelectContext(ctx, &res, query, tenantID)
 	return res, err
+}
+
+func (r *Repository) ListResourcesWithItems(ctx context.Context, tenantID uuid.UUID) ([]map[string]interface{}, error) {
+    // Gunakan ::text untuk kolom id dan di dalam json_build_object
+    query := `
+        SELECT 
+            r.id::text as id, 
+            r.name, 
+            r.category, 
+            r.status,
+            COALESCE(json_agg(json_build_object(
+                'id', i.id::text, 
+                'name', i.name,
+                'item_type', i.item_type,
+                'price_per_hour', i.price_per_hour
+            )) FILTER (WHERE i.id IS NOT NULL), '[]') as items
+        FROM resources r
+        LEFT JOIN resource_items i ON r.id = i.resource_id
+        WHERE r.tenant_id = $1 AND r.status != 'deleted'
+        GROUP BY r.id
+        ORDER BY r.created_at DESC`
+
+    rows, err := r.db.QueryxContext(ctx, query, tenantID)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var results []map[string]interface{}
+    for rows.Next() {
+        res := make(map[string]interface{})
+        err := rows.MapScan(res)
+        if err != nil {
+            return nil, err
+        }
+
+        // --- PENTING: Fix untuk json_agg yang terbaca sebagai []byte ---
+        // Kadang json_agg tetap dikirim sebagai []byte oleh driver
+        if itemsBytes, ok := res["items"].([]byte); ok {
+            var itemsArray []map[string]interface{}
+            if err := json.Unmarshal(itemsBytes, &itemsArray); err == nil {
+                res["items"] = itemsArray
+            }
+        }
+
+        results = append(results, res)
+    }
+
+    return results, nil
 }

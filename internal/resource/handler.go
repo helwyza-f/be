@@ -111,3 +111,13 @@ func (h *Handler) DeleteItem(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Item deleted successfully"})
 }
+
+func (h *Handler) GetPublicDetail(c *gin.Context) {
+    id := c.Param("id")
+    res, err := h.service.GetResourceDetail(c.Request.Context(), id)
+    if err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "Resource tidak ditemukan"})
+        return
+    }
+    c.JSON(http.StatusOK, res)
+}

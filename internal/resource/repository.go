@@ -118,3 +118,22 @@ func (r *Repository) DeleteItem(ctx context.Context, itemID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx, query, itemID)
 	return err
 }
+
+func (r *Repository) GetOneWithItems(ctx context.Context, id uuid.UUID) (*booking.Resource, error) {
+    var res booking.Resource
+    err := r.db.GetContext(ctx, &res, `SELECT * FROM resources WHERE id = $1`, id)
+    if err != nil { return nil, err }
+
+    var items []booking.ResourceItem
+    // Ambil items, prioritaskan yang Default dan tipe Main di atas
+    err = r.db.SelectContext(ctx, &items, `
+        SELECT * FROM resource_items 
+        WHERE resource_id = $1 
+        ORDER BY item_type ASC, is_default DESC`, id)
+    
+    if err == nil {
+        res.Items = items
+    }
+    
+    return &res, nil
+}

@@ -75,3 +75,11 @@ func (s *Service) DeleteItem(ctx context.Context, id string) error {
 	if err != nil { return err }
 	return s.repo.DeleteItem(ctx, uID)
 }
+
+func (s *Service) GetResourceDetail(ctx context.Context, id string) (*booking.Resource, error) {
+    uID, err := uuid.Parse(id)
+    if err != nil { return nil, err }
+    
+    // Gunakan repo yang sudah kita buat tadi
+    return s.repo.GetOneWithItems(ctx, uID)
+}

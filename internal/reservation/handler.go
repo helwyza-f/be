@@ -18,21 +18,28 @@ func NewHandler(s *Service) *Handler {
 func (h *Handler) Create(c *gin.Context) {
 	var req CreateBookingReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Data input tidak valid: " + err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "LENGKAPI DATA BOOKING"})
 		return
 	}
 
-	tenantID := c.MustGet("tenantID").(string)
-	b, err := h.service.Create(c.Request.Context(), tenantID, req)
+	// Logic tenant detection
+	if req.TenantID == "" {
+		if tID, exists := c.Get("tenantID"); exists {
+			req.TenantID = tID.(string)
+		}
+	}
+
+	b, err := h.service.Create(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message":    "Booking berhasil dikirim",
-		"data":       b,
-		"magic_link": "/status/" + b.AccessToken.String(),
+		"message":      "BOOKING BERHASIL",
+		"booking_id":   b.ID,
+		"access_token": b.AccessToken,
+		"redirect_url": "/status/" + b.AccessToken.String(),
 	})
 }
 
@@ -67,3 +74,52 @@ func (h *Handler) Status(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, b)
 }
+
+// ListAll untuk Admin Dashboard
+func (h *Handler) ListAll(c *gin.Context) {
+    tenantID := c.MustGet("tenantID").(string)
+    status := c.Query("status") // Optional filter: ?status=pending
+
+    bookings, err := h.service.ListByTenant(c.Request.Context(), tenantID, status)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    c.JSON(http.StatusOK, bookings)
+}
+
+// GetDetail untuk Admin melihat rincian (termasuk items/options)
+func (h *Handler) GetDetail(c *gin.Context) {
+    id := c.Param("id")
+    tenantID := c.MustGet("tenantID").(string)
+
+    booking, err := h.service.GetDetailForAdmin(c.Request.Context(), id, tenantID)
+    if err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "Booking tidak ditemukan"})
+        return
+    }
+    c.JSON(http.StatusOK, booking)
+}
+
+// UpdateStatus (Confirm, Ongoing, Cancelled, Finished)
+func (h *Handler) UpdateStatus(c *gin.Context) {
+    id := c.Param("id")
+    tenantID := c.MustGet("tenantID").(string)
+    
+    var req struct {
+        Status string `json:"status" binding:"required"`
+    }
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Status wajib diisi"})
+        return
+    }
+
+    err := h.service.UpdateStatus(c.Request.Context(), id, tenantID, req.Status)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"message": "Status booking berhasil diperbarui ke " + req.Status})
+}
+

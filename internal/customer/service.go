@@ -22,17 +22,20 @@ func (s *Service) Register(ctx context.Context, tenantID string, req RegisterReq
 		return nil, fmt.Errorf("service: id tenant tidak valid")
 	}
 
+	// Cek apakah nomor sudah ada di tenant ini
+	existing, _ := s.repo.FindByPhone(ctx, tID, req.Phone)
+	if existing != nil {
+		return existing, nil // Return yang sudah ada (Idempotent)
+	}
+
 	cust := Customer{
 		ID:            uuid.New(),
 		TenantID:      tID,
 		Name:          req.Name,
 		Phone:         req.Phone,
+		Email:         req.Email,
 		LoyaltyPoints: 0,
 		CreatedAt:     time.Now(),
-	}
-
-	if req.Email != "" {
-		cust.Email = &req.Email
 	}
 
 	if err := s.repo.Create(ctx, cust); err != nil {

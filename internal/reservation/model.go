@@ -26,9 +26,27 @@ type BookingOption struct {
 }
 
 type CreateBookingReq struct {
-	CustomerID string   `json:"customer_id" binding:"required"`
-	ResourceID string   `json:"resource_id" binding:"required"`
-	ItemIDs    []string `json:"item_ids"`
-	StartTime  string   `json:"start_time" binding:"required"`
-	Duration   int      `json:"duration" binding:"required"`
+	TenantID      string   `json:"tenant_id" binding:"required"`
+	ResourceID    string   `json:"resource_id" binding:"required"`
+	CustomerName  string   `json:"customer_name" binding:"required"`
+	CustomerPhone string   `json:"customer_phone" binding:"required"`
+	ItemIDs       []string `json:"item_ids"`
+	StartTime     string   `json:"start_time" binding:"required"`
+	Duration      int      `json:"duration" binding:"required"`
+}
+
+type BookingDetail struct {
+	Booking
+	CustomerName  string          `db:"customer_name" json:"customer_name"`
+	CustomerPhone string          `db:"customer_phone" json:"customer_phone"`
+	ResourceName  string          `db:"resource_name" json:"resource_name"`
+	TotalAmount   float64         `db:"total_amount" json:"total_amount"`
+	Options       []BookingOptionDetail `json:"options"`
+}
+
+type BookingOptionDetail struct {
+	ID             uuid.UUID `json:"id"`
+	ItemName       string    `db:"item_name" json:"item_name"`
+	ItemType       string    `db:"item_type" json:"item_type"`
+	PriceAtBooking float64   `db:"price_at_booking" json:"price_at_booking"`
 }
