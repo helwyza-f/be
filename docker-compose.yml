@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  batam-engine-api:
+    build: .
+    container_name: bookinaja_api
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    restart: always
+    # Menambahkan logging biar gampang debug kalau ada error di EC2
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
