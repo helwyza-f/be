@@ -19,31 +19,31 @@ func NewHandler(s *Service) *Handler {
 }
 
 func (h *Handler) GetPublicLandingData(c *gin.Context) {
-    slug := c.Query("slug")
-    if slug == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "slug is required"})
-        return
-    }
-    
-    cleanSlug := strings.Split(slug, ".")[0]
+	slug := c.Query("slug")
+	if slug == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "slug is required"})
+		return
+	}
 
-    tenant, err := h.service.repo.GetBySlug(c.Request.Context(), cleanSlug)
-    if err != nil || tenant == nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "Bisnis tidak ditemukan"})
-        return
-    }
+	cleanSlug := strings.Split(slug, ".")[0]
 
-    // Ambil resources yang ID-nya sudah diconvert ke text dan items sudah di-unmarshal
-    resources, err := h.service.repo.ListResourcesWithItems(c.Request.Context(), tenant.ID)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data unit"})
-        return
-    }
+	tenant, err := h.service.repo.GetBySlug(c.Request.Context(), cleanSlug)
+	if err != nil || tenant == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Bisnis tidak ditemukan"})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{
-        "profile":   tenant,
-        "resources": resources,
-    })
+	// Ambil resources yang ID-nya sudah diconvert ke text dan items sudah di-unmarshal
+	resources, err := h.service.repo.ListResourcesWithItems(c.Request.Context(), tenant.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data unit"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"profile":   tenant,
+		"resources": resources,
+	})
 }
 
 func (h *Handler) Register(c *gin.Context) {
@@ -58,8 +58,8 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{
-		"tenant": t,
-		"login_url": fmt.Sprintf("http://%s.%s", t.Slug, "localhost:3000"),
+		"tenant":    t,
+		"login_url": fmt.Sprintf("http://%s.%s", t.Slug, "bookinaja.com"),
 	})
 }
 
@@ -91,7 +91,7 @@ func (h *Handler) GetProfile(c *gin.Context) {
 func (h *Handler) UpdateProfile(c *gin.Context) {
 	tIDRaw, _ := c.Get("tenantID")
 	tID, _ := uuid.Parse(tIDRaw.(string))
-	
+
 	var req Tenant
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
