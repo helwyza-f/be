@@ -59,7 +59,7 @@ func (h *Handler) Register(c *gin.Context) {
 	}
 	c.JSON(http.StatusCreated, gin.H{
 		"tenant":    t,
-		"login_url": fmt.Sprintf("http://%s.%s", t.Slug, "bookinaja.com"),
+		"login_url": fmt.Sprintf("https://%s.%s", t.Slug, "bookinaja.com"),
 	})
 }
 
